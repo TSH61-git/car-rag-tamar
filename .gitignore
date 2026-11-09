@@ -1,0 +1,6 @@
+
+.cache/
+__pycache__/
+.venv/
+.env
+diag.txt
