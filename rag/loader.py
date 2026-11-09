@@ -1,4 +1,5 @@
 """Loads the Markdown documents in data/ together with their metadata (the block between the --- lines)."""
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -26,5 +27,7 @@ def load_docs(folder: str = "data") -> list[Doc]:
     docs = []
     for path in sorted(Path(folder).rglob("*.md")):
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
+        # Hidden from human readers, so whatever is in them can only be aimed at the model.
+        body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
         docs.append(Doc(id=path.stem, title=meta.get("title", path.stem), text=body.strip(), meta=meta))
     return docs
