@@ -1,4 +1,6 @@
 """Answers a question from the retrieved chunks, as a Pydantic object with citations."""
+import unicodedata
+
 from pydantic import BaseModel, Field
 
 from rag.chunking import Chunk
@@ -43,10 +45,12 @@ def ask(question: str, chunks: list[Chunk], client=None) -> tuple[Answer, object
 
 
 def verify_citations(answer: Answer, chunks: list[Chunk]) -> list[Citation]:
-    """TODO (step 5): return the citations that are NOT backed by the chunks.
+    """Return the citations whose chunk was not sent or whose quote is not in that chunk."""
+    def norm(s: str) -> str:
+        # The model re-wraps lines and may compose Hebrew points differently; neither changes the words.
+        return " ".join(unicodedata.normalize("NFC", s).split())
 
-    A citation is bad if its chunk_id is not one of the chunks we sent,
-    or if its quote does not appear in that chunk's text.
-    An empty list means every citation checks out.
-    """
-    raise NotImplementedError("step 5: write verify_citations")
+    texts = {c.id: norm(c.text) for c in chunks}
+    # An empty quote is a substring of everything, so it would back any claim.
+    return [c for c in answer.citations
+            if c.chunk_id not in texts or not norm(c.quote) or norm(c.quote) not in texts[c.chunk_id]]
