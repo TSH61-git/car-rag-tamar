@@ -26,13 +26,21 @@ def chunk_fixed(doc: Doc, size: int = 350, overlap: int = 50) -> list[Chunk]:
 
 
 def chunk_by_headings(doc: Doc) -> list[Chunk]:
-    """TODO (step 2): one chunk per "## " section.
+    """One chunk per "## " section, each prefixed with its "title › heading" path line."""
+    sections = [(None, [])]
+    for line in doc.text.splitlines():
+        if line.startswith("## "):
+            sections.append((line[3:].strip(), []))
+        elif not line.startswith("# "):
+            sections[-1][1].append(line)
 
-    - Every chunk starts with a heading path line: "<document title> › <section heading>".
-      The text before the first "## " goes in a chunk whose path line is just the title.
-    - Skip the "# " title line itself (the path line already carries the title).
-    - Keep each section whole, so a table stays together with its header row.
-    - Copy the document metadata and add meta["section"] = the section heading.
-    - Ids: f"{doc.id}#{n}", numbered from 0.
-    """
-    raise NotImplementedError("step 2: write chunk_by_headings")
+    chunks = []
+    for heading, lines in sections:
+        body = "\n".join(lines).strip()
+        # A title-only document (e.g. a failed scan) still gets one chunk so it stays findable.
+        if not body and not (heading is None and len(sections) == 1):
+            continue
+        path = doc.title if heading is None else f"{doc.title} › {heading}"
+        meta = dict(doc.meta, section=heading or "")
+        chunks.append(Chunk(f"{doc.id}#{len(chunks)}", doc.id, f"{path}\n\n{body}".strip(), meta))
+    return chunks
